@@ -7,8 +7,10 @@
 //
 
 #import "AppDelegate.h"
+#import "UIApplication+SimulatorRemoteNotifications.h"
+#import "UserNotifications/UNUserNotificationCenter.h"
 
-@interface AppDelegate ()
+@interface AppDelegate () <UNUserNotificationCenterDelegate>
 
 @end
 
@@ -17,6 +19,26 @@
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
+    
+    UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    center.delegate = self;
+    [center requestAuthorizationWithOptions:(UNAuthorizationOptionBadge|UNAuthorizationOptionSound|UNAuthorizationOptionAlert)
+                          completionHandler:^(BOOL granted, NSError * _Nullable error) {
+                              if (!granted) {
+                                  NSLog(@"Something went wrong");
+                              }
+                          }];
+    
+#if TARGET_OS_SIMULATOR
+    [application listenForRemoteNotifications];
+#else
+    if([[UIApplication sharedApplication] isRegisteredForRemoteNotifications]) {
+        NSLog(@"application is registered for push notifications");
+    } else {
+        NSLog(@"application is registered for push notifications");
+        [[UIApplication sharedApplication] registerForRemoteNotifications];
+    }
+#endif
     return YES;
 }
 
@@ -47,5 +69,43 @@
     // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
 }
 
+#pragma Methods related to notifications
+
+- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken
+{
+    const unsigned *tokenBytes = [deviceToken bytes];
+    NSString *hexToken = [NSString stringWithFormat:@"%08x%08x%08x%08x%08x%08x%08x%08x",
+                          ntohl(tokenBytes[0]), ntohl(tokenBytes[1]), ntohl(tokenBytes[2]),
+                          ntohl(tokenBytes[3]), ntohl(tokenBytes[4]), ntohl(tokenBytes[5]),
+                          ntohl(tokenBytes[6]), ntohl(tokenBytes[7])];
+
+    NSLog(@"application:didRegisterForRemoteNotificationsWithDeviceToken: %@", hexToken);
+    
+    // Register the device token with a webservice
+}
+
+- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error
+{
+    NSLog(@"application:didFailToRegisterForRemoteNotificationsWithError: %@", error);
+}
+
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
+{
+    NSLog(@"application:didReceiveRemoteNotification: %@", userInfo);
+}
+
+#pragma Methods related to User notifications
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center willPresentNotification:(nonnull UNNotification *)notification withCompletionHandler:(nonnull void (^)(UNNotificationPresentationOptions))completionHandler
+{
+    NSLog(@"userNotificationCenter:willPresentNotification: %@", notification);
+    completionHandler(UNNotificationPresentationOptionAlert);
+}
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center didReceiveNotificationResponse:(UNNotificationResponse *)response withCompletionHandler:(void(^)())completionHandler
+{
+    NSLog(@"userNotificationCenter:didReceiveNotificationResponse: %@", response);
+    completionHandler();
+}
 
 @end
