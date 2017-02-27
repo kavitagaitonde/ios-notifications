@@ -35,7 +35,7 @@
     if([[UIApplication sharedApplication] isRegisteredForRemoteNotifications]) {
         NSLog(@"application is registered for push notifications");
     } else {
-        NSLog(@"application is registered for push notifications");
+        NSLog(@"application is not registered for push notifications");
         [[UIApplication sharedApplication] registerForRemoteNotifications];
     }
 #endif
